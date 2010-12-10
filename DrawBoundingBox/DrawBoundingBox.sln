@@ -1,0 +1,24 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DrawBoundingBox", "DrawBoundingBox\DrawBoundingBox\DrawBoundingBox.csproj", "{1D191686-C04A-47BA-9333-5D84D4DCD4DD}"
+EndProject
+Project("{96E2B04D-8817-42C6-938A-82C39BA4D311}") = "DrawBoundingBoxContent", "DrawBoundingBox\DrawBoundingBoxContent\DrawBoundingBoxContent.contentproj", "{348A06A3-F957-47A5-9EFF-F635671A1BEA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1D191686-C04A-47BA-9333-5D84D4DCD4DD}.Debug|x86.ActiveCfg = Debug|x86
+		{1D191686-C04A-47BA-9333-5D84D4DCD4DD}.Debug|x86.Build.0 = Debug|x86
+		{1D191686-C04A-47BA-9333-5D84D4DCD4DD}.Release|x86.ActiveCfg = Release|x86
+		{1D191686-C04A-47BA-9333-5D84D4DCD4DD}.Release|x86.Build.0 = Release|x86
+		{348A06A3-F957-47A5-9EFF-F635671A1BEA}.Debug|x86.ActiveCfg = Debug|x86
+		{348A06A3-F957-47A5-9EFF-F635671A1BEA}.Release|x86.ActiveCfg = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
