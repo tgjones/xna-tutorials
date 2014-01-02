@@ -1,0 +1,30 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CascadedShadowMaps", "CascadedShadowMaps\CascadedShadowMaps\CascadedShadowMaps.csproj", "{2DCD839B-ACAD-456C-BEFE-F39693A38C62}"
+EndProject
+Project("{96E2B04D-8817-42C6-938A-82C39BA4D311}") = "CascadedShadowMapsContent", "CascadedShadowMaps\CascadedShadowMapsContent\CascadedShadowMapsContent.contentproj", "{7FE2A0D2-F27A-49B8-BEE4-AD5C0639F9C4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomEffectPipeline", "CustomEffectPipeline\CustomEffectPipeline.csproj", "{E383EC8B-E2C8-4249-A50E-24C4AF53A16A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2DCD839B-ACAD-456C-BEFE-F39693A38C62}.Debug|x86.ActiveCfg = Debug|x86
+		{2DCD839B-ACAD-456C-BEFE-F39693A38C62}.Debug|x86.Build.0 = Debug|x86
+		{2DCD839B-ACAD-456C-BEFE-F39693A38C62}.Release|x86.ActiveCfg = Release|x86
+		{2DCD839B-ACAD-456C-BEFE-F39693A38C62}.Release|x86.Build.0 = Release|x86
+		{7FE2A0D2-F27A-49B8-BEE4-AD5C0639F9C4}.Debug|x86.ActiveCfg = Debug|x86
+		{7FE2A0D2-F27A-49B8-BEE4-AD5C0639F9C4}.Release|x86.ActiveCfg = Release|x86
+		{E383EC8B-E2C8-4249-A50E-24C4AF53A16A}.Debug|x86.ActiveCfg = Debug|x86
+		{E383EC8B-E2C8-4249-A50E-24C4AF53A16A}.Debug|x86.Build.0 = Debug|x86
+		{E383EC8B-E2C8-4249-A50E-24C4AF53A16A}.Release|x86.ActiveCfg = Debug|x86
+		{E383EC8B-E2C8-4249-A50E-24C4AF53A16A}.Release|x86.Build.0 = Debug|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
