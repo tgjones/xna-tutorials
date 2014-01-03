@@ -110,7 +110,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="ShadowMappingGame.cs" />
+    <Compile Include="Shadows\BoundingBoxExtensions.cs" />
     <Compile Include="Shadows\FrustumUtility.cs" />
+    <Compile Include="Shadows\ShadowRenderer.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Game.ico" />

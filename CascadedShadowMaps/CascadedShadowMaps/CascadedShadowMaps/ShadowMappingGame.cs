@@ -10,6 +10,8 @@
 #region Using Statements
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using CascadedShadowMaps.Shadows;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Content;
@@ -29,10 +31,6 @@ namespace CascadedShadowMaps
 	public class ShadowMappingGame : Microsoft.Xna.Framework.Game
 	{
 		#region Constants
-
-		// The size of the shadow map
-		// The larger the size the more detail we will have for our entire scene
-		const int shadowMapWidthHeight = 2048;
 
 		const int windowWidth = 800;
 		const int windowHeight = 480;
@@ -69,8 +67,7 @@ namespace CascadedShadowMaps
 		Matrix view;
 		Matrix projection;
 
-		// ViewProjection matrix from the lights perspective
-		Matrix lightViewProjection;
+	    private readonly ShadowRenderer _shadowRenderer;
 
 		#endregion
 
@@ -90,6 +87,8 @@ namespace CascadedShadowMaps
 			projection = Matrix.CreatePerspectiveFieldOfView(MathHelper.PiOver4,
 															 aspectRatio,
 															 1.0f, 1000.0f);
+
+            _shadowRenderer = new ShadowRenderer();
 		}
 
 
@@ -106,12 +105,13 @@ namespace CascadedShadowMaps
 			shipModel = Content.Load<Model>("ship");
 
 			// Create floating point render target
-			shadowRenderTarget = new RenderTarget2D(graphics.GraphicsDevice,
-													shadowMapWidthHeight,
-													shadowMapWidthHeight,
-													false,
-													SurfaceFormat.Single,
-													DepthFormat.Depth24);
+		    shadowRenderTarget = new RenderTarget2D(
+                graphics.GraphicsDevice,
+		        _shadowRenderer.ShadowMapSize * 2,
+                _shadowRenderer.ShadowMapSize * 2,
+		        false,
+		        SurfaceFormat.Single,
+		        DepthFormat.Depth24);
 		}
 
 		#endregion
@@ -138,10 +138,6 @@ namespace CascadedShadowMaps
 		/// <param name="gameTime">Provides a snapshot of timing values.</param>
 		protected override void Draw(GameTime gameTime)
 		{
-			// Update the lights ViewProjection matrix based on the 
-			// current camera frustum
-			lightViewProjection = CreateLightViewProjectionMatrix();
-
 			GraphicsDevice.BlendState = BlendState.Opaque;
 			GraphicsDevice.DepthStencilState = DepthStencilState.Default;
 
@@ -161,62 +157,14 @@ namespace CascadedShadowMaps
 
 		#region Methods
 
-		/// <summary>
-		/// Creates the WorldViewProjection matrix from the perspective of the 
-		/// light using the cameras bounding frustum to determine what is visible 
-		/// in the scene.
-		/// </summary>
-		/// <returns>The WorldViewProjection for the light</returns>
-		Matrix CreateLightViewProjectionMatrix()
-		{
-			// Matrix with that will rotate in points the direction of the light
-			Matrix lightRotation = Matrix.CreateLookAt(Vector3.Zero,
-													   -lightDir,
-													   Vector3.Up);
-
-			// Get the corners of the frustum
-			Vector3[] frustumCorners = cameraFrustum.GetCorners();
-
-			// Transform the positions of the corners into the direction of the light
-			for (int i = 0; i < frustumCorners.Length; i++)
-			{
-				frustumCorners[i] = Vector3.Transform(frustumCorners[i], lightRotation);
-			}
-
-			// Find the smallest box around the points
-			BoundingBox lightBox = BoundingBox.CreateFromPoints(frustumCorners);
-
-			Vector3 boxSize = lightBox.Max - lightBox.Min;
-			Vector3 halfBoxSize = boxSize * 0.5f;
-
-			// The position of the light should be in the center of the back
-			// pannel of the box. 
-			Vector3 lightPosition = lightBox.Min + halfBoxSize;
-			lightPosition.Z = lightBox.Min.Z;
-
-			// We need the position back in world coordinates so we transform 
-			// the light position by the inverse of the lights rotation
-			lightPosition = Vector3.Transform(lightPosition,
-											  Matrix.Invert(lightRotation));
-
-			// Create the view matrix for the light
-			Matrix lightView = Matrix.CreateLookAt(lightPosition,
-												   lightPosition - lightDir,
-												   Vector3.Up);
-
-			// Create the projection matrix for the light
-			// The projection is orthographic since we are using a directional light
-			Matrix lightProjection = Matrix.CreateOrthographic(boxSize.X, boxSize.Y,
-															   -boxSize.Z, boxSize.Z);
-
-			return lightView * lightProjection;
-		}
-
 		private Matrix CreateWorldMatrixForShip()
 		{
 			return Matrix.CreateRotationY(MathHelper.ToRadians(rotateShip))
 				* Matrix.CreateTranslation(0, 15, 0);
 		}
+
+        IList<Matrix> _tileTransforms;
+        IList<Vector4> _tileBounds;
 
 		/// <summary>
 		/// Renders the scene to the floating point render target then 
@@ -230,16 +178,49 @@ namespace CascadedShadowMaps
 			// Clear the render target to white or all 1's
 			// We set the clear to white since that represents the 
 			// furthest the object could be away
-			GraphicsDevice.Clear(Color.White);
+			GraphicsDevice.Clear(
+                ClearOptions.Target | ClearOptions.DepthBuffer,
+                Color.White, 1.0f, 0);
+
+		    var worldBoundingBox = new[] { gridModel, shipModel }
+                .SelectMany(x => x.Meshes)
+                .Select(x => x.BoundingSphere)
+                .Select(BoundingBox.CreateFromSphere)
+                .Aggregate(new BoundingBox(), BoundingBox.CreateMerged);
+
+		    IList<Matrix> shadowSplitProjections;
+		    IList<float> shadowSplitDistances;
+            _shadowRenderer.GetShadowTransforms(
+                -lightDir, worldBoundingBox, view, projection, 
+                out shadowSplitProjections,
+                out shadowSplitDistances,
+                out _tileTransforms,
+                out _tileBounds);
 
 			// Draw any occluders in our case that is just the ship model
 
 			// Set the models world matrix so it will rotate
 			world = CreateWorldMatrixForShip();
-			// Draw the ship model
-			DrawModel(shipModel, true);
 
-			// Set render target back to the back buffer
+		    for (var i = 0; i < _shadowRenderer.NumShadowSplits; i++)
+		    {
+                // Setup viewport.
+		        var x = i % 2;
+		        var y = i / 2;
+                GraphicsDevice.Viewport = new Viewport(
+                    x * _shadowRenderer.ShadowMapSize,
+                    y * _shadowRenderer.ShadowMapSize,
+                    _shadowRenderer.ShadowMapSize,
+                    _shadowRenderer.ShadowMapSize);
+
+		        // Draw the ship model
+		        DrawModel(shipModel, true, e =>
+		        {
+                    e.Parameters["LightViewProj"].SetValue(shadowSplitProjections[i]);
+		        });
+		    }
+
+		    // Set render target back to the back buffer
 			GraphicsDevice.SetRenderTarget(null);
 		}
 
@@ -266,7 +247,7 @@ namespace CascadedShadowMaps
 		/// </summary>
 		/// <param name="model">The model to draw</param>
 		/// <param name="technique">The technique to use</param>
-		void DrawModel(Model model, bool createShadowMap)
+		void DrawModel(Model model, bool createShadowMap, Action<Effect> setParametersCallback = null)
 		{
 			string techniqueName = createShadowMap ? "CreateShadowMap" : "DrawWithShadowMap";
 
@@ -285,10 +266,16 @@ namespace CascadedShadowMaps
 					effect.Parameters["View"].SetValue(view);
 					effect.Parameters["Projection"].SetValue(projection);
 					effect.Parameters["LightDirection"].SetValue(lightDir);
-					effect.Parameters["LightViewProj"].SetValue(lightViewProjection);
 
-					if (!createShadowMap)
-						effect.Parameters["ShadowMap"].SetValue(shadowRenderTarget);
+				    if (setParametersCallback != null)
+				        setParametersCallback(effect);
+
+				    if (!createShadowMap)
+				    {
+				        effect.Parameters["ShadowMap"].SetValue(shadowRenderTarget);
+                        effect.Parameters["ShadowTransform"].SetValue(_tileTransforms.ToArray());
+                        effect.Parameters["TileBounds"].SetValue(_tileBounds.ToArray());
+				    }
 				}
 				// Draw the mesh
 				mesh.Draw();
