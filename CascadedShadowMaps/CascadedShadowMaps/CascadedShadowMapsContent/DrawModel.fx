@@ -125,11 +125,11 @@ ShadowSplitInfo GetSplitInfo(ShadowData shadowData)
 }
 
 // compute shadow factor: 0 if in shadow, 1 if not
-float GetShadowFactor(ShadowData shadowData)
+float GetShadowFactor(ShadowData shadowData, float ndotl)
 {
     ShadowSplitInfo splitInfo = GetSplitInfo(shadowData);
     float storedDepth = tex2Dlod(ShadowMapSampler, float4(splitInfo.TexCoords, 0, 0)).r;
-    return (splitInfo.LightSpaceDepth < storedDepth) ? 1.0f : 0.5f;
+    return saturate(((splitInfo.LightSpaceDepth < storedDepth) * (ndotl > 0)) + 0.5f);
 }
 
 struct DrawWithShadowMap_VSIn
@@ -197,14 +197,15 @@ float4 DrawWithShadowMap_PixelShader(DrawWithShadowMap_VSOut input) : COLOR
     // Color of the model
     float4 diffuseColor = tex2D(TextureSampler, input.TexCoord);
     // Intensity based on the direction of the light
-    float diffuseIntensity = saturate(dot(LightDirection, input.Normal));
+    float ndotl = dot(LightDirection, input.Normal);
+    float diffuseIntensity = saturate(ndotl);
     // Final diffuse color with ambient color added
     float4 diffuse = diffuseIntensity * diffuseColor + AmbientColor;
 
     // Find the position of this pixel in light space
     float4 lightingPosition = mul(input.WorldPos, LightViewProj);
 
-    float shadowFactor = GetShadowFactor(input.Shadow);
+    float shadowFactor = GetShadowFactor(input.Shadow, ndotl);
 
     diffuse *= shadowFactor;
 
