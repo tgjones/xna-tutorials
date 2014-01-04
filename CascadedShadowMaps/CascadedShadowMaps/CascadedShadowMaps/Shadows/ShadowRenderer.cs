@@ -67,23 +67,22 @@ namespace CascadedShadowMaps.Shadows
                 // Compute tile transform.
 
                 // compute block index into shadow atlas
-                int tileX = i % 2;
-                int tileY = i / 2;
+                var tileX = i;
 
                 // [x min, x max, y min, y max]
                 float tileBorder = 3.0f / ShadowMapSize;
                 var tileBounds2 = new Vector4(
-                    0.5f * tileX + tileBorder,
-                    0.5f * tileX + 0.5f - tileBorder,
-                    0.5f * tileY + tileBorder,
-                    0.5f * tileY + 0.5f - tileBorder
+                    0.25f * tileX + tileBorder,
+                    0.25f * tileX + 0.25f - tileBorder,
+                    tileBorder,
+                    1.0f - tileBorder
                 );
 
                 // tile matrix: maps from clip space to shadow atlas block
                 var tileMatrix = Matrix.Identity;
-                tileMatrix.M11 = 0.25f;
-                tileMatrix.M22 = -0.25f;
-                tileMatrix.Translation = new Vector3(0.25f + tileX * 0.5f, 0.25f + tileY * 0.5f, 0);
+                tileMatrix.M11 = 0.125f;
+                tileMatrix.M22 = -0.5f;
+                tileMatrix.Translation = new Vector3(0.125f + tileX * 0.25f, 0.5f, 0);
 
                 return new
                 {

@@ -133,8 +133,8 @@ namespace CascadedShadowMaps
 		    // Create floating point render target
 		    _shadowRenderTarget = new RenderTarget2D(
                 _graphics.GraphicsDevice,
-		        _shadowRenderer.ShadowMapSize * 2,
-                _shadowRenderer.ShadowMapSize * 2,
+		        _shadowRenderer.ShadowMapSize * _shadowRenderer.NumShadowSplits,
+                _shadowRenderer.ShadowMapSize,
 		        false,
 		        SurfaceFormat.Single,
 		        DepthFormat.Depth24);
@@ -229,11 +229,8 @@ namespace CascadedShadowMaps
 		    for (var i = 0; i < _shadowRenderer.NumShadowSplits; i++)
 		    {
                 // Setup viewport.
-		        var x = i % 2;
-		        var y = i / 2;
                 GraphicsDevice.Viewport = new Viewport(
-                    x * _shadowRenderer.ShadowMapSize,
-                    y * _shadowRenderer.ShadowMapSize,
+                    i * _shadowRenderer.ShadowMapSize, 0,
                     _shadowRenderer.ShadowMapSize,
                     _shadowRenderer.ShadowMapSize);
 
@@ -280,7 +277,7 @@ namespace CascadedShadowMaps
 		/// </summary>
 		private void DrawModel(Model model, Matrix worldMatrix, bool createShadowMap, Action<Effect> setParametersCallback)
 		{
-			string techniqueName = createShadowMap ? "CreateShadowMap" : "DrawWithShadowMap";
+			var techniqueName = createShadowMap ? "CreateShadowMap" : "DrawWithShadowMap";
 
 			// Loop over meshs in the model
 			foreach (ModelMesh mesh in model.Meshes)
@@ -309,7 +306,7 @@ namespace CascadedShadowMaps
         private void DrawShadowMapToScreen()
 		{
 			_spriteBatch.Begin(0, BlendState.Opaque, SamplerState.PointClamp, null, null);
-			_spriteBatch.Draw(_shadowRenderTarget, new Rectangle(0, 0, 128, 128), Color.White);
+			_spriteBatch.Draw(_shadowRenderTarget, new Rectangle(0, 0, 128 * 4, 128), Color.White);
 			_spriteBatch.End();
 
 			GraphicsDevice.Textures[0] = null;
@@ -350,7 +347,6 @@ namespace CascadedShadowMaps
 				Exit();
 			}
 		}
-
 
 		/// <summary>
 		/// Handles input for moving the camera.
