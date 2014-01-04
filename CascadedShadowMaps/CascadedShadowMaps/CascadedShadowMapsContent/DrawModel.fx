@@ -119,7 +119,6 @@ ShadowSplitInfo GetSplitInfo(ShadowData shadowData)
         shadowData.LightSpaceDepth.w,
     };
 
-    //result.
     for (int splitIndex = 0; splitIndex < 4; splitIndex++)
     {
         // Check if this is the right split for this pixel.

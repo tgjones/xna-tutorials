@@ -69,8 +69,11 @@ namespace CascadedShadowMaps.Shadows
                 // compute block index into shadow atlas
                 var tileX = i;
 
-                // [x min, x max, y min, y max]
+                // The border keeps the pixel shader from reading outside the
+                // valid range when we're using rotated Poisson disk filtering.
                 float tileBorder = 3.0f / ShadowMapSize;
+
+                // [x min, x max, y min, y max]
                 var tileBounds2 = new Vector4(
                     0.25f * tileX + tileBorder,
                     0.25f * tileX + 0.25f - tileBorder,
