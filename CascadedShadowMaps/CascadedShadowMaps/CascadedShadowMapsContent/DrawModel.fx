@@ -46,6 +46,24 @@ struct ShadowData
     float4 TexCoords_0_1;
     float4 TexCoords_2_3;
     float4 LightSpaceDepth;
+    float3 WorldPosition;
+};
+
+#define NUM_SPLITS 4
+
+float2 PoissonKernel[12];
+float  PoissonKernelScale[NUM_SPLITS + 1] = { 1.0f, 1.10f, 1.2f, 1.3f, 0.0f };
+
+texture3D RotatedPoissonDiskTexture;
+sampler RotatedPoissonDiskSampler = sampler_state
+{
+    texture = <RotatedPoissonDiskTexture>;
+    magfilter = POINT;
+    minfilter = POINT;
+    mipfilter = POINT;
+    AddressU = wrap;
+    AddressV = wrap;
+    AddressW = wrap;
 };
 
 // Compute shadow parameters (texture coordinates and depth)
@@ -70,6 +88,7 @@ ShadowData GetShadowData(float4 worldPosition)
         lightSpaceDepth[1], 
         lightSpaceDepth[2], 
         lightSpaceDepth[3]);
+    result.WorldPosition = worldPosition;
 
     return result;
 }
@@ -126,9 +145,32 @@ ShadowSplitInfo GetSplitInfo(ShadowData shadowData)
 // compute shadow factor: 0 if in shadow, 1 if not
 float GetShadowFactor(ShadowData shadowData, float ndotl)
 {
+    // Filter using rotated Poisson disk. We use a 3D texture
+    // with precalculated sample positions.
+    float4 randomTexCoords3D = float4(shadowData.WorldPosition.xyz * 100, 0);
+    float2 randomValues = tex3Dlod(RotatedPoissonDiskSampler, randomTexCoords3D).rg;
+    float2 rotation = randomValues * 2 - 1;    
+
     ShadowSplitInfo splitInfo = GetSplitInfo(shadowData);
-    float storedDepth = tex2Dlod(ShadowMapSampler, float4(splitInfo.TexCoords, 0, 0)).r;
-    return saturate(((splitInfo.LightSpaceDepth < storedDepth) * (ndotl > 0)) + 0.5f);
+
+    const int numSamples = 6;
+    float result = 0;
+    for (int s = 0; s < numSamples; s++)
+    {
+        float2 poissonOffset = float2(
+            rotation.x * PoissonKernel[s].x - rotation.y * PoissonKernel[s].y,
+            rotation.y * PoissonKernel[s].x + rotation.x * PoissonKernel[s].y);
+
+        float4 randomizedTexCoords = float4(
+            splitInfo.TexCoords + poissonOffset * PoissonKernelScale[splitInfo.SplitIndex],
+            0, 0);
+
+        float storedDepth = tex2Dlod(ShadowMapSampler, randomizedTexCoords).r;
+        result += splitInfo.LightSpaceDepth < storedDepth;
+    }
+    float shadowFactor = result / numSamples;
+
+    return saturate((shadowFactor * (ndotl > 0)) + 0.5f);
 }
 
 struct DrawWithShadowMap_VSIn

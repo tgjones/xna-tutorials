@@ -108,7 +108,14 @@ namespace CascadedShadowMaps
 			gridModel = Content.Load<Model>("grid");
 			shipModel = Content.Load<Model>("ship");
 
-			// Create floating point render target
+		    var rotatedPoissonDiskTexture = PoissonDiskUtility.CreateRotatedPoissonDiskTexture(GraphicsDevice);
+		    foreach (var meshPart in new[] { gridModel, shipModel }.SelectMany(x => x.Meshes).SelectMany(x => x.MeshParts))
+		    {
+                meshPart.Effect.Parameters["RotatedPoissonDiskTexture"].SetValue(rotatedPoissonDiskTexture);
+                meshPart.Effect.Parameters["PoissonKernel"].SetValue(PoissonDiskUtility.CreatePoissonKernel(_shadowRenderer.ShadowMapSize));
+		    }
+
+		    // Create floating point render target
 		    shadowRenderTarget = new RenderTarget2D(
                 graphics.GraphicsDevice,
 		        _shadowRenderer.ShadowMapSize * 2,

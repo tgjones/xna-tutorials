@@ -112,6 +112,7 @@
     <Compile Include="ShadowMappingGame.cs" />
     <Compile Include="Shadows\BoundingBoxExtensions.cs" />
     <Compile Include="Shadows\FrustumUtility.cs" />
+    <Compile Include="Shadows\PoissonDiskUtility.cs" />
     <Compile Include="Shadows\ShadowRenderer.cs" />
   </ItemGroup>
   <ItemGroup>
