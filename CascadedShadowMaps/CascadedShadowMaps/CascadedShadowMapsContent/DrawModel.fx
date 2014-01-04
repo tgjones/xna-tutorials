@@ -119,6 +119,7 @@ ShadowSplitInfo GetSplitInfo(ShadowData shadowData)
         shadowData.LightSpaceDepth.w,
     };
 
+    //result.
     for (int splitIndex = 0; splitIndex < 4; splitIndex++)
     {
         // Check if this is the right split for this pixel.
@@ -149,7 +150,14 @@ float GetShadowFactor(ShadowData shadowData, float ndotl)
     // with precalculated sample positions.
     float4 randomTexCoords3D = float4(shadowData.WorldPosition.xyz * 100, 0);
     float2 randomValues = tex3Dlod(RotatedPoissonDiskSampler, randomTexCoords3D).rg;
-    float2 rotation = randomValues * 2 - 1;    
+    float2 rotation = randomValues * 2 - 1;
+
+    // Soften edges caused by our use of ndotl.
+    // Create a smooth transition between 0 and 1 when ndotl lies in the range [0 .. 0.2]
+    float l = smoothstep(0, 0.2, ndotl);
+
+    // Create a smooth transition between 0 and 1 when l lies in the range [randomValues.x .. 1]
+    float t = smoothstep(randomValues.x * 0.5, 1.0f, l);
 
     ShadowSplitInfo splitInfo = GetSplitInfo(shadowData);
 
@@ -168,9 +176,9 @@ float GetShadowFactor(ShadowData shadowData, float ndotl)
         float storedDepth = tex2Dlod(ShadowMapSampler, randomizedTexCoords).r;
         result += splitInfo.LightSpaceDepth < storedDepth;
     }
-    float shadowFactor = result / numSamples;
+    float shadowFactor = result / numSamples * t;
 
-    return saturate((shadowFactor * (ndotl > 0)) + 0.5f);
+    return lerp(0.5, 1.0, shadowFactor);
 }
 
 struct DrawWithShadowMap_VSIn
