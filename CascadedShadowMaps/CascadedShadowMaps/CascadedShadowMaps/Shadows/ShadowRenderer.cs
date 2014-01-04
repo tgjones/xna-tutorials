@@ -33,7 +33,7 @@ namespace CascadedShadowMaps.Shadows
                 lightDirection, 
                 Vector3.Up);
 
-            var viewDistance = worldBoundingBox.GetMaximumExtent();
+            var viewDistance = 100;//worldBoundingBox.GetMaximumExtent();
 
             var splitPlanes = FrustumUtility
                 .PracticalSplitScheme(NumShadowSplits, 1, viewDistance)
@@ -53,6 +53,9 @@ namespace CascadedShadowMaps.Shadows
                 var n = splitDistances[i];
                 var f = splitDistances[i + 1];
 
+                // Calculate four of the planes (but not near / far) using the
+                // minimum and maximum of the X and Y coordinates of the view
+                // frustum in light space.
                 var frustumCorners = FrustumUtility
                     .GetWorldSpaceFrustumCorners(n, f, cameraViewProjectionInverse)
                     .Select(x => Vector3.Transform(x, shadowView))

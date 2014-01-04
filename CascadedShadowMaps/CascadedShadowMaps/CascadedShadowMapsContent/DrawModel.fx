@@ -20,6 +20,16 @@ float4x4 ShadowTransform[4];
 // The bounding rectangle (in texture coordinates) for each split.
 float4 TileBounds[4];
 
+float4 SplitColors[4] =
+{
+    float4(1, 0, 0, 1),
+    float4(0, 1, 0, 1),
+    float4(0, 0, 1, 1),
+    float4(1, 1, 0, 1)
+};
+
+bool ShowSplits;
+
 texture Texture;
 sampler TextureSampler = sampler_state
 {
@@ -190,6 +200,12 @@ float4 DrawWithShadowMap_PixelShader(DrawWithShadowMap_VSOut input) : COLOR
     float diffuseIntensity = saturate(dot(LightDirection, input.Normal));
     // Final diffuse color with ambient color added
     float4 diffuse = diffuseIntensity * diffuseColor + AmbientColor;
+
+    if (ShowSplits)
+    {
+        ShadowSplitInfo splitInfo = GetSplitInfo(input.Shadow);
+        return diffuse * 0.5f + SplitColors[splitInfo.SplitIndex] * 0.5f;
+    }
 
     // Find the position of this pixel in light space
     float4 lightingPosition = mul(input.WorldPos, LightViewProj);

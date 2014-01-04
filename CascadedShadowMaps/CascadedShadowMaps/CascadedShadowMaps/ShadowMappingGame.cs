@@ -50,7 +50,7 @@ namespace CascadedShadowMaps
 		// Light direction
 		Vector3 lightDir = new Vector3(-0.3333333f, 0.6666667f, 0.6666667f);
 
-		KeyboardState currentKeyboardState;
+		KeyboardState currentKeyboardState, lastKeyboardState;
 		GamePadState currentGamePadState;
 
 		// Our two models in the scene
@@ -66,6 +66,8 @@ namespace CascadedShadowMaps
 		Matrix world;
 		Matrix view;
 		Matrix projection;
+
+	    private bool _showSplits;
 
 	    private readonly ShadowRenderer _shadowRenderer;
 
@@ -272,6 +274,7 @@ namespace CascadedShadowMaps
 
 				    if (!createShadowMap)
 				    {
+                        effect.Parameters["ShowSplits"].SetValue(_showSplits);
 				        effect.Parameters["ShadowMap"].SetValue(shadowRenderTarget);
                         effect.Parameters["ShadowTransform"].SetValue(_tileTransforms.ToArray());
                         effect.Parameters["TileBounds"].SetValue(_tileBounds.ToArray());
@@ -306,6 +309,7 @@ namespace CascadedShadowMaps
 		{
 			float time = (float)gameTime.ElapsedGameTime.TotalMilliseconds;
 
+		    lastKeyboardState = currentKeyboardState;
 			currentKeyboardState = Keyboard.GetState();
 			currentGamePadState = GamePad.GetState(PlayerIndex.One);
 
@@ -317,6 +321,9 @@ namespace CascadedShadowMaps
 				rotateShip -= time * 0.2f;
 			if (currentKeyboardState.IsKeyDown(Keys.E))
 				rotateShip += time * 0.2f;
+
+		    if (currentKeyboardState.IsKeyDown(Keys.V) && !lastKeyboardState.IsKeyDown(Keys.V))
+		        _showSplits = !_showSplits;
 
 			// Check for exit.
 			if (currentKeyboardState.IsKeyDown(Keys.Escape) ||
