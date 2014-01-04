@@ -8,19 +8,15 @@
 #endregion
 
 #region Using Statements
+using CascadedShadowMaps.Shadows;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
-using CascadedShadowMaps.Shadows;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Audio;
-using Microsoft.Xna.Framework.Content;
-using Microsoft.Xna.Framework.GamerServices;
-using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
-using Microsoft.Xna.Framework.Net;
-using Microsoft.Xna.Framework.Storage;
+
 #endregion
 
 namespace CascadedShadowMaps
@@ -29,49 +25,70 @@ namespace CascadedShadowMaps
 	/// Sample showing how to implement a simple shadow mapping technique where
 	/// the shadow map always contains the contents of the viewing frustum
 	/// </summary>
-	public class ShadowMappingGame : Microsoft.Xna.Framework.Game
+	public class ShadowMappingGame : Game
 	{
 		#region Constants
 
-		const int windowWidth = 800;
-		const int windowHeight = 480;
+	    private const int WindowWidth = 800;
+	    private const int WindowHeight = 480;
 
 		#endregion
 
 		#region Fields
 
-		GraphicsDeviceManager graphics;
-		SpriteBatch spriteBatch;
+	    private readonly GraphicsDeviceManager _graphics;
+	    private SpriteBatch _spriteBatch;
 
 		// Starting position and direction of our camera
-		Vector3 cameraPosition = new Vector3(0, 70, 100);
-		Vector3 cameraForward = new Vector3(0, -0.4472136f, -0.8944272f);
-		BoundingFrustum cameraFrustum = new BoundingFrustum(Matrix.Identity);
+	    private Vector3 _cameraPosition = new Vector3(0, 70, 100);
+	    private Vector3 _cameraForward = new Vector3(0, -0.4472136f, -0.8944272f);
 
 		// Light direction
-		Vector3 lightDir = Vector3.Normalize(new Vector3(-0.3333333f, 0.6666667f, 0.6666667f));
-        //Vector3 lightDir = Vector3.Normalize(new Vector3(0.1f, 1.0f, 0.1f));
+	    private readonly Vector3 _lightDir = Vector3.Normalize(new Vector3(-0.3333333f, 0.6666667f, 0.6666667f));
 
-		KeyboardState currentKeyboardState, lastKeyboardState;
-		GamePadState currentGamePadState;
+	    private KeyboardState _currentKeyboardState, _lastKeyboardState;
+	    private GamePadState _currentGamePadState;
 
 		// Our two models in the scene
-		Model gridModel;
-		Model shipModel;
+	    private Model _gridModel;
+	    private Model _shipModel;
 
-		float rotateShip = 0.0f;
+	    private float _rotateShip;
 
 		// The shadow map render target
-		RenderTarget2D shadowRenderTarget;
+	    private RenderTarget2D _shadowRenderTarget;
 
 		// Transform matrices
-		Matrix world;
-		Matrix view;
-		Matrix projection;
+        private readonly Matrix _projection;
+        private Matrix _view;
 
 	    private bool _showSplits;
 
 	    private readonly ShadowRenderer _shadowRenderer;
+
+        private IList<Matrix> _tileTransforms;
+        private IList<Vector4> _tileBounds;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct DepthBiasState
+        {
+            public readonly float SlopeScaleDepthBias;
+            public readonly float DepthBias;
+
+            public DepthBiasState(float slopeScaleDepthBias, float depthBias)
+            {
+                SlopeScaleDepthBias = slopeScaleDepthBias;
+                DepthBias = depthBias;
+            }
+        }
+
+        private readonly DepthBiasState[] _shadowDepthBias = 
+        {
+            new DepthBiasState(2.5f, 0.0009f),
+            new DepthBiasState(2.5f, 0.0009f),
+            new DepthBiasState(2.5f, 0.0009f),
+            new DepthBiasState(2.5f, 0.001f)
+        };
 
 		#endregion
 
@@ -79,22 +96,20 @@ namespace CascadedShadowMaps
 
 		public ShadowMappingGame()
 		{
-			graphics = new GraphicsDeviceManager(this);
+			_graphics = new GraphicsDeviceManager(this);
 
 			Content.RootDirectory = "Content";
 
-			graphics.PreferredBackBufferWidth = windowWidth;
-			graphics.PreferredBackBufferHeight = windowHeight;
+			_graphics.PreferredBackBufferWidth = WindowWidth;
+			_graphics.PreferredBackBufferHeight = WindowHeight;
 
-			float aspectRatio = (float)windowWidth / (float)windowHeight;
+		    const float aspectRatio = (float) WindowWidth / (float) WindowHeight;
 
-			projection = Matrix.CreatePerspectiveFieldOfView(MathHelper.PiOver4,
-															 aspectRatio,
-															 1.0f, 1000.0f);
+		    _projection = Matrix.CreatePerspectiveFieldOfView(
+                MathHelper.PiOver4, aspectRatio, 1.0f, 1000.0f);
 
             _shadowRenderer = new ShadowRenderer();
 		}
-
 
 		/// <summary>
 		/// LoadContent will be called once per game and is the place to load
@@ -102,22 +117,22 @@ namespace CascadedShadowMaps
 		/// </summary>
 		protected override void LoadContent()
 		{
-			spriteBatch = new SpriteBatch(GraphicsDevice);
+			_spriteBatch = new SpriteBatch(GraphicsDevice);
 
 			// Load the two models we will be using in the sample
-			gridModel = Content.Load<Model>("grid");
-			shipModel = Content.Load<Model>("ship");
+			_gridModel = Content.Load<Model>("grid");
+			_shipModel = Content.Load<Model>("ship");
 
 		    var rotatedPoissonDiskTexture = PoissonDiskUtility.CreateRotatedPoissonDiskTexture(GraphicsDevice);
-		    foreach (var meshPart in new[] { gridModel, shipModel }.SelectMany(x => x.Meshes).SelectMany(x => x.MeshParts))
+		    foreach (var meshPart in new[] { _gridModel, _shipModel }.SelectMany(x => x.Meshes).SelectMany(x => x.MeshParts))
 		    {
                 meshPart.Effect.Parameters["RotatedPoissonDiskTexture"].SetValue(rotatedPoissonDiskTexture);
                 meshPart.Effect.Parameters["PoissonKernel"].SetValue(PoissonDiskUtility.CreatePoissonKernel(_shadowRenderer.ShadowMapSize));
 		    }
 
 		    // Create floating point render target
-		    shadowRenderTarget = new RenderTarget2D(
-                graphics.GraphicsDevice,
+		    _shadowRenderTarget = new RenderTarget2D(
+                _graphics.GraphicsDevice,
 		        _shadowRenderer.ShadowMapSize * 2,
                 _shadowRenderer.ShadowMapSize * 2,
 		        false,
@@ -170,34 +185,18 @@ namespace CascadedShadowMaps
 
 		private Matrix CreateWorldMatrixForShip()
 		{
-			return Matrix.CreateRotationY(MathHelper.ToRadians(rotateShip))
+			return Matrix.CreateRotationY(MathHelper.ToRadians(_rotateShip))
 				* Matrix.CreateTranslation(0, 15, 0);
 		}
-
-        IList<Matrix> _tileTransforms;
-        IList<Vector4> _tileBounds;
-
-	    [StructLayout(LayoutKind.Sequential)]
-	    private struct DepthBiasState
-	    {
-	        public float SlopeScaleDepthBias;
-	        public float DepthBias;
-
-	        public DepthBiasState(float slopeScaleDepthBias, float depthBias)
-	        {
-	            SlopeScaleDepthBias = slopeScaleDepthBias;
-	            DepthBias = depthBias;
-	        }
-	    }
 
 	    /// <summary>
 		/// Renders the scene to the floating point render target then 
 		/// sets the texture for use when drawing the scene.
 		/// </summary>
-		void CreateShadowMap()
+		private void CreateShadowMap()
 		{
 			// Set our render target to our floating point render target
-			GraphicsDevice.SetRenderTarget(shadowRenderTarget);
+			GraphicsDevice.SetRenderTarget(_shadowRenderTarget);
 
 			// Clear the render target to white or all 1's
 			// We set the clear to white since that represents the 
@@ -206,7 +205,7 @@ namespace CascadedShadowMaps
                 ClearOptions.Target | ClearOptions.DepthBuffer,
                 Color.White, 1.0f, 0);
 
-		    var worldBoundingBox = new[] { gridModel, shipModel }
+		    var worldBoundingBox = new[] { _gridModel, _shipModel }
                 .SelectMany(x => x.Meshes)
                 .Select(x => x.BoundingSphere)
                 .Select(BoundingBox.CreateFromSphere)
@@ -215,7 +214,7 @@ namespace CascadedShadowMaps
 		    IList<Matrix> shadowSplitProjections;
 		    IList<float> shadowSplitDistances;
             _shadowRenderer.GetShadowTransforms(
-                -lightDir, worldBoundingBox, view, projection, 
+                -_lightDir, worldBoundingBox, _view, _projection, 
                 out shadowSplitProjections,
                 out shadowSplitDistances,
                 out _tileTransforms,
@@ -224,8 +223,9 @@ namespace CascadedShadowMaps
 			// Draw any occluders in our case that is just the ship model
 
 			// Set the models world matrix so it will rotate
-			world = CreateWorldMatrixForShip();
+			var world = CreateWorldMatrixForShip();
 
+            // Render each shadow split.
 		    for (var i = 0; i < _shadowRenderer.NumShadowSplits; i++)
 		    {
                 // Setup viewport.
@@ -238,11 +238,12 @@ namespace CascadedShadowMaps
                     _shadowRenderer.ShadowMapSize);
 
 		        // Draw the ship model
-		        DrawModel(shipModel, true, e =>
+		        int i1 = i;
+		        DrawModel(_shipModel, world, true, e =>
 		        {
-                    e.Parameters["LightViewProj"].SetValue(shadowSplitProjections[i]);
-                    e.Parameters["DepthBias"].StructureMembers["SlopeScaleDepthBias"].SetValue(_shadowDepthBias[i].SlopeScaleDepthBias);
-                    e.Parameters["DepthBias"].StructureMembers["DepthBias"].SetValue(_shadowDepthBias[i].DepthBias);
+                    e.Parameters["LightViewProj"].SetValue(shadowSplitProjections[i1]);
+                    e.Parameters["DepthBias"].StructureMembers["SlopeScaleDepthBias"].SetValue(_shadowDepthBias[i1].SlopeScaleDepthBias);
+                    e.Parameters["DepthBias"].StructureMembers["DepthBias"].SetValue(_shadowDepthBias[i1].DepthBias);
 		        });
 		    }
 
@@ -250,69 +251,54 @@ namespace CascadedShadowMaps
 			GraphicsDevice.SetRenderTarget(null);
 		}
 
-        private readonly DepthBiasState[] _shadowDepthBias = 
-        {
-            new DepthBiasState(2.5f, 0.0009f),
-            new DepthBiasState(2.5f, 0.0009f),
-            new DepthBiasState(2.5f, 0.0009f),
-            new DepthBiasState(2.5f, 0.001f)
-        };
-
 		/// <summary>
 		/// Renders the scene using the shadow map to darken the shadow areas
 		/// </summary>
-		void DrawWithShadowMap()
+		private void DrawWithShadowMap()
 		{
-			graphics.GraphicsDevice.Clear(Color.CornflowerBlue);
+			_graphics.GraphicsDevice.Clear(Color.CornflowerBlue);
 
 			GraphicsDevice.SamplerStates[1] = SamplerState.PointClamp;
 
+		    Action<Effect> setParameters = effect =>
+		    {
+		        effect.Parameters["ShowSplits"].SetValue(_showSplits);
+		        effect.Parameters["ShadowMap"].SetValue(_shadowRenderTarget);
+		        effect.Parameters["ShadowTransform"].SetValue(_tileTransforms.ToArray());
+		        effect.Parameters["TileBounds"].SetValue(_tileBounds.ToArray());
+		    };
+
 			// Draw the grid
-			world = Matrix.Identity;
-			DrawModel(gridModel, false);
+            DrawModel(_gridModel, Matrix.Identity, false, setParameters);
 
 			// Draw the ship model
-			world = CreateWorldMatrixForShip();
-			DrawModel(shipModel, false);
+            DrawModel(_shipModel, CreateWorldMatrixForShip(), false, setParameters);
 		}
 
 		/// <summary>
 		/// Helper function to draw a model
 		/// </summary>
-		/// <param name="model">The model to draw</param>
-		/// <param name="technique">The technique to use</param>
-		void DrawModel(Model model, bool createShadowMap, Action<Effect> setParametersCallback = null)
+		private void DrawModel(Model model, Matrix worldMatrix, bool createShadowMap, Action<Effect> setParametersCallback)
 		{
 			string techniqueName = createShadowMap ? "CreateShadowMap" : "DrawWithShadowMap";
-
-			Matrix[] transforms = new Matrix[model.Bones.Count];
-			model.CopyAbsoluteBoneTransformsTo(transforms);
 
 			// Loop over meshs in the model
 			foreach (ModelMesh mesh in model.Meshes)
 			{
 				// Loop over effects in the mesh
-				foreach (Effect effect in mesh.Effects)
-				{
-					// Set the currest values for the effect
-					effect.CurrentTechnique = effect.Techniques[techniqueName];
-					effect.Parameters["World"].SetValue(world);
-					effect.Parameters["View"].SetValue(view);
-					effect.Parameters["Projection"].SetValue(projection);
-					effect.Parameters["LightDirection"].SetValue(lightDir);
+			    foreach (Effect effect in mesh.Effects)
+			    {
+			        // Set the currest values for the effect
+			        effect.CurrentTechnique = effect.Techniques[techniqueName];
+			        effect.Parameters["World"].SetValue(worldMatrix);
+			        effect.Parameters["View"].SetValue(_view);
+			        effect.Parameters["Projection"].SetValue(_projection);
+			        effect.Parameters["LightDirection"].SetValue(_lightDir);
 
-				    if (setParametersCallback != null)
-				        setParametersCallback(effect);
+			        setParametersCallback(effect);
+			    }
 
-				    if (!createShadowMap)
-				    {
-                        effect.Parameters["ShowSplits"].SetValue(_showSplits);
-				        effect.Parameters["ShadowMap"].SetValue(shadowRenderTarget);
-                        effect.Parameters["ShadowTransform"].SetValue(_tileTransforms.ToArray());
-                        effect.Parameters["TileBounds"].SetValue(_tileBounds.ToArray());
-				    }
-				}
-				// Draw the mesh
+			    // Draw the mesh
 				mesh.Draw();
 			}
 		}
@@ -320,11 +306,11 @@ namespace CascadedShadowMaps
 		/// <summary>
 		/// Render the shadow map texture to the screen
 		/// </summary>
-		void DrawShadowMapToScreen()
+        private void DrawShadowMapToScreen()
 		{
-			spriteBatch.Begin(0, BlendState.Opaque, SamplerState.PointClamp, null, null);
-			spriteBatch.Draw(shadowRenderTarget, new Rectangle(0, 0, 128, 128), Color.White);
-			spriteBatch.End();
+			_spriteBatch.Begin(0, BlendState.Opaque, SamplerState.PointClamp, null, null);
+			_spriteBatch.Draw(_shadowRenderTarget, new Rectangle(0, 0, 128, 128), Color.White);
+			_spriteBatch.End();
 
 			GraphicsDevice.Textures[0] = null;
 			GraphicsDevice.SamplerStates[0] = SamplerState.LinearWrap;
@@ -337,29 +323,29 @@ namespace CascadedShadowMaps
 		/// <summary>
 		/// Handles input for quitting the game.
 		/// </summary>
-		void HandleInput(GameTime gameTime)
+		private void HandleInput(GameTime gameTime)
 		{
-			float time = (float)gameTime.ElapsedGameTime.TotalMilliseconds;
+			var time = (float)gameTime.ElapsedGameTime.TotalMilliseconds;
 
-		    lastKeyboardState = currentKeyboardState;
-			currentKeyboardState = Keyboard.GetState();
-			currentGamePadState = GamePad.GetState(PlayerIndex.One);
+		    _lastKeyboardState = _currentKeyboardState;
+			_currentKeyboardState = Keyboard.GetState();
+			_currentGamePadState = GamePad.GetState(PlayerIndex.One);
 
 			// Rotate the ship model
-			rotateShip += currentGamePadState.Triggers.Right * time * 0.2f;
-			rotateShip -= currentGamePadState.Triggers.Left * time * 0.2f;
+			_rotateShip += _currentGamePadState.Triggers.Right * time * 0.2f;
+			_rotateShip -= _currentGamePadState.Triggers.Left * time * 0.2f;
 
-			if (currentKeyboardState.IsKeyDown(Keys.Q))
-				rotateShip -= time * 0.2f;
-			if (currentKeyboardState.IsKeyDown(Keys.E))
-				rotateShip += time * 0.2f;
+			if (_currentKeyboardState.IsKeyDown(Keys.Q))
+				_rotateShip -= time * 0.2f;
+			if (_currentKeyboardState.IsKeyDown(Keys.E))
+				_rotateShip += time * 0.2f;
 
-		    if (currentKeyboardState.IsKeyDown(Keys.V) && !lastKeyboardState.IsKeyDown(Keys.V))
+		    if (_currentKeyboardState.IsKeyDown(Keys.V) && !_lastKeyboardState.IsKeyDown(Keys.V))
 		        _showSplits = !_showSplits;
 
 			// Check for exit.
-			if (currentKeyboardState.IsKeyDown(Keys.Escape) ||
-				currentGamePadState.Buttons.Back == ButtonState.Pressed)
+			if (_currentKeyboardState.IsKeyDown(Keys.Escape) ||
+				_currentGamePadState.Buttons.Back == ButtonState.Pressed)
 			{
 				Exit();
 			}
@@ -369,77 +355,71 @@ namespace CascadedShadowMaps
 		/// <summary>
 		/// Handles input for moving the camera.
 		/// </summary>
-		void UpdateCamera(GameTime gameTime)
+        private void UpdateCamera(GameTime gameTime)
 		{
-			float time = (float)gameTime.ElapsedGameTime.TotalMilliseconds;
+			var time = (float)gameTime.ElapsedGameTime.TotalMilliseconds;
 
 			// Check for input to rotate the camera.
-			float pitch = -currentGamePadState.ThumbSticks.Right.Y * time * 0.001f;
-			float turn = -currentGamePadState.ThumbSticks.Right.X * time * 0.001f;
+			float pitch = -_currentGamePadState.ThumbSticks.Right.Y * time * 0.001f;
+			float turn = -_currentGamePadState.ThumbSticks.Right.X * time * 0.001f;
 
-			if (currentKeyboardState.IsKeyDown(Keys.Up))
-				pitch += time * 0.001f;
+		    var cameraRotationSpeed = time * 0.001f;
 
-			if (currentKeyboardState.IsKeyDown(Keys.Down))
-				pitch -= time * 0.001f;
+			if (_currentKeyboardState.IsKeyDown(Keys.Up))
+                pitch += cameraRotationSpeed;
 
-			if (currentKeyboardState.IsKeyDown(Keys.Left))
-				turn += time * 0.001f;
+			if (_currentKeyboardState.IsKeyDown(Keys.Down))
+                pitch -= cameraRotationSpeed;
 
-			if (currentKeyboardState.IsKeyDown(Keys.Right))
-				turn -= time * 0.001f;
+			if (_currentKeyboardState.IsKeyDown(Keys.Left))
+                turn += cameraRotationSpeed;
 
-			Vector3 cameraRight = Vector3.Cross(Vector3.Up, cameraForward);
+			if (_currentKeyboardState.IsKeyDown(Keys.Right))
+                turn -= cameraRotationSpeed;
+
+			Vector3 cameraRight = Vector3.Cross(Vector3.Up, _cameraForward);
 			Vector3 flatFront = Vector3.Cross(cameraRight, Vector3.Up);
 
 			Matrix pitchMatrix = Matrix.CreateFromAxisAngle(cameraRight, pitch);
 			Matrix turnMatrix = Matrix.CreateFromAxisAngle(Vector3.Up, turn);
 
-			Vector3 tiltedFront = Vector3.TransformNormal(cameraForward, pitchMatrix *
-														  turnMatrix);
+			Vector3 tiltedFront = Vector3.TransformNormal(_cameraForward, pitchMatrix * turnMatrix);
 
 			// Check angle so we cant flip over
-			if (Vector3.Dot(tiltedFront, flatFront) > 0.001f)
-			{
-				cameraForward = Vector3.Normalize(tiltedFront);
-			}
+		    if (Vector3.Dot(tiltedFront, flatFront) > 0.001f)
+		        _cameraForward = Vector3.Normalize(tiltedFront);
 
-		    var cameraTranslationSpeed = 0.03f;
+		    var cameraTranslationSpeed = time * 0.03f;
+
 			// Check for input to move the camera around.
-		    if (currentKeyboardState.IsKeyDown(Keys.W))
-		        cameraPosition += cameraForward * time * cameraTranslationSpeed;
+		    if (_currentKeyboardState.IsKeyDown(Keys.W))
+		        _cameraPosition += _cameraForward * cameraTranslationSpeed;
 
-			if (currentKeyboardState.IsKeyDown(Keys.S))
-				cameraPosition -= cameraForward * time * cameraTranslationSpeed;
+			if (_currentKeyboardState.IsKeyDown(Keys.S))
+				_cameraPosition -= _cameraForward * cameraTranslationSpeed;
 
-			if (currentKeyboardState.IsKeyDown(Keys.A))
-                cameraPosition += cameraRight * time * cameraTranslationSpeed;
+			if (_currentKeyboardState.IsKeyDown(Keys.A))
+                _cameraPosition += cameraRight * cameraTranslationSpeed;
 
-			if (currentKeyboardState.IsKeyDown(Keys.D))
-                cameraPosition -= cameraRight * time * cameraTranslationSpeed;
+			if (_currentKeyboardState.IsKeyDown(Keys.D))
+                _cameraPosition -= cameraRight * cameraTranslationSpeed;
 
-			cameraPosition += cameraForward *
-							  currentGamePadState.ThumbSticks.Left.Y * time * 0.1f;
+			_cameraPosition += _cameraForward * _currentGamePadState.ThumbSticks.Left.Y * cameraTranslationSpeed;
+            _cameraPosition -= cameraRight * _currentGamePadState.ThumbSticks.Left.X * cameraTranslationSpeed;
 
-			cameraPosition -= cameraRight *
-							  currentGamePadState.ThumbSticks.Left.X * time * 0.1f;
-
-			if (currentGamePadState.Buttons.RightStick == ButtonState.Pressed ||
-				currentKeyboardState.IsKeyDown(Keys.R))
+			if (_currentGamePadState.Buttons.RightStick == ButtonState.Pressed ||
+				_currentKeyboardState.IsKeyDown(Keys.R))
 			{
-				cameraPosition = new Vector3(0, 50, 50);
-				cameraForward = new Vector3(0, 0, -1);
+				_cameraPosition = new Vector3(0, 50, 50);
+				_cameraForward = new Vector3(0, 0, -1);
 			}
 
-			cameraForward.Normalize();
+			_cameraForward.Normalize();
 
 			// Create the new view matrix
-			view = Matrix.CreateLookAt(cameraPosition,
-									   cameraPosition + cameraForward,
-									   Vector3.Up);
-
-			// Set the new frustum value
-			cameraFrustum.Matrix = view * projection;
+		    _view = Matrix.CreateLookAt(_cameraPosition,
+		        _cameraPosition + _cameraForward,
+		        Vector3.Up);
 		}
 
 		#endregion
