@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
 
@@ -13,7 +14,7 @@ namespace CascadedShadowMaps.Shadows
 
         public int ShadowMapSize
         {
-            get { return 256; }
+            get { return 512; }
         }
 
         public void GetShadowTransforms(
@@ -24,8 +25,7 @@ namespace CascadedShadowMaps.Shadows
             out IList<Matrix> tileTransforms,
             out IList<Vector4> tileBounds)
         {
-            var cameraViewProjection = cameraView * cameraProjection;
-            var cameraViewProjectionInverse = Matrix.Invert(cameraViewProjection);
+            var cameraViewProjectionInverse = Matrix.Invert(cameraView * cameraProjection);
 
             // Create shadow view matrix.
             var shadowView = Matrix.CreateLookAt(
@@ -37,7 +37,8 @@ namespace CascadedShadowMaps.Shadows
 
             var splitPlanes = FrustumUtility
                 .PracticalSplitScheme(NumShadowSplits, 1, viewDistance)
-                .Select(x => -x);
+                .Select(x => -x)
+                .ToList();
 
             var splitDistances = splitPlanes
                 .Select(x => FrustumUtility.ConvertViewSpaceDepthToClipSpaceDepth(x, cameraProjection))

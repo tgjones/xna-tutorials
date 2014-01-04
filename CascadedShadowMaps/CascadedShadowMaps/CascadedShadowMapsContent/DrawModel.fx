@@ -201,18 +201,18 @@ float4 DrawWithShadowMap_PixelShader(DrawWithShadowMap_VSOut input) : COLOR
     // Final diffuse color with ambient color added
     float4 diffuse = diffuseIntensity * diffuseColor + AmbientColor;
 
-    if (ShowSplits)
-    {
-        ShadowSplitInfo splitInfo = GetSplitInfo(input.Shadow);
-        return diffuse * 0.5f + SplitColors[splitInfo.SplitIndex] * 0.5f;
-    }
-
     // Find the position of this pixel in light space
     float4 lightingPosition = mul(input.WorldPos, LightViewProj);
 
     float shadowFactor = GetShadowFactor(input.Shadow);
 
     diffuse *= shadowFactor;
+
+    if (ShowSplits)
+    {
+        ShadowSplitInfo splitInfo = GetSplitInfo(input.Shadow);
+        diffuse = diffuse * 0.5f + SplitColors[splitInfo.SplitIndex] * 0.5f;
+    }
     
     return diffuse;
 }

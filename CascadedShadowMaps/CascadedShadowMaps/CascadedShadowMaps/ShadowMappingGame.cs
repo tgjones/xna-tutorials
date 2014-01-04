@@ -48,7 +48,8 @@ namespace CascadedShadowMaps
 		BoundingFrustum cameraFrustum = new BoundingFrustum(Matrix.Identity);
 
 		// Light direction
-		Vector3 lightDir = new Vector3(-0.3333333f, 0.6666667f, 0.6666667f);
+		Vector3 lightDir = Vector3.Normalize(new Vector3(-0.3333333f, 0.6666667f, 0.6666667f));
+        //Vector3 lightDir = Vector3.Normalize(new Vector3(0.1f, 1.0f, 0.1f));
 
 		KeyboardState currentKeyboardState, lastKeyboardState;
 		GamePadState currentGamePadState;
@@ -372,18 +373,19 @@ namespace CascadedShadowMaps
 				cameraForward = Vector3.Normalize(tiltedFront);
 			}
 
+		    var cameraTranslationSpeed = 0.03f;
 			// Check for input to move the camera around.
-			if (currentKeyboardState.IsKeyDown(Keys.W))
-				cameraPosition += cameraForward * time * 0.1f;
+		    if (currentKeyboardState.IsKeyDown(Keys.W))
+		        cameraPosition += cameraForward * time * cameraTranslationSpeed;
 
 			if (currentKeyboardState.IsKeyDown(Keys.S))
-				cameraPosition -= cameraForward * time * 0.1f;
+				cameraPosition -= cameraForward * time * cameraTranslationSpeed;
 
 			if (currentKeyboardState.IsKeyDown(Keys.A))
-				cameraPosition += cameraRight * time * 0.1f;
+                cameraPosition += cameraRight * time * cameraTranslationSpeed;
 
 			if (currentKeyboardState.IsKeyDown(Keys.D))
-				cameraPosition -= cameraRight * time * 0.1f;
+                cameraPosition -= cameraRight * time * cameraTranslationSpeed;
 
 			cameraPosition += cameraForward *
 							  currentGamePadState.ThumbSticks.Left.Y * time * 0.1f;
