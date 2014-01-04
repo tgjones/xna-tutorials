@@ -11,6 +11,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using CascadedShadowMaps.Shadows;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
@@ -169,7 +170,20 @@ namespace CascadedShadowMaps
         IList<Matrix> _tileTransforms;
         IList<Vector4> _tileBounds;
 
-		/// <summary>
+	    [StructLayout(LayoutKind.Sequential)]
+	    private struct DepthBiasState
+	    {
+	        public float SlopeScaleDepthBias;
+	        public float DepthBias;
+
+	        public DepthBiasState(float slopeScaleDepthBias, float depthBias)
+	        {
+	            SlopeScaleDepthBias = slopeScaleDepthBias;
+	            DepthBias = depthBias;
+	        }
+	    }
+
+	    /// <summary>
 		/// Renders the scene to the floating point render target then 
 		/// sets the texture for use when drawing the scene.
 		/// </summary>
@@ -220,12 +234,22 @@ namespace CascadedShadowMaps
 		        DrawModel(shipModel, true, e =>
 		        {
                     e.Parameters["LightViewProj"].SetValue(shadowSplitProjections[i]);
+                    e.Parameters["DepthBias"].StructureMembers["SlopeScaleDepthBias"].SetValue(_shadowDepthBias[i].SlopeScaleDepthBias);
+                    e.Parameters["DepthBias"].StructureMembers["DepthBias"].SetValue(_shadowDepthBias[i].DepthBias);
 		        });
 		    }
 
 		    // Set render target back to the back buffer
 			GraphicsDevice.SetRenderTarget(null);
 		}
+
+        private readonly DepthBiasState[] _shadowDepthBias = 
+        {
+            new DepthBiasState(2.5f, 0.0009f),
+            new DepthBiasState(2.5f, 0.0009f),
+            new DepthBiasState(2.5f, 0.0009f),
+            new DepthBiasState(2.5f, 0.001f)
+        };
 
 		/// <summary>
 		/// Renders the scene using the shadow map to darken the shadow areas

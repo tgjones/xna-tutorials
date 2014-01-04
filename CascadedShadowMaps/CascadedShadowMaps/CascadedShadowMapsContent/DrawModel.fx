@@ -12,7 +12,6 @@ float4x4 LightViewProj;
 
 float3 LightDirection;
 float4 AmbientColor = float4(0.15, 0.15, 0.15, 0);
-float DepthBias = 0.001f;
 
 // The "world to shadow atlas partition" transforms.
 float4x4 ShadowTransform[4];
@@ -164,10 +163,25 @@ CreateShadowMap_VSOut CreateShadowMap_VertexShader(float4 Position: POSITION)
     return Out;
 }
 
+struct DepthBiasState
+{
+    float SlopeScaleDepthBias;
+    float DepthBias;
+};
+DepthBiasState DepthBias;
+
 // Saves the depth value out to the 32bit floating point texture
 float4 CreateShadowMap_PixelShader(CreateShadowMap_VSOut input) : COLOR
 { 
-    return float4(input.Depth, 0, 0, 0);
+    float depthSlopeBias = max(
+        abs(ddx(input.Depth)),
+        abs(ddy(input.Depth)));
+
+    float depth = input.Depth
+        + depthSlopeBias * DepthBias.SlopeScaleDepthBias
+        + DepthBias.DepthBias;
+
+    return float4(depth, 0, 0, 0);
 }
 
 // Draws the model with shadows
@@ -223,8 +237,8 @@ technique CreateShadowMap
 {
     pass Pass1
     {
-        VertexShader = compile vs_2_0 CreateShadowMap_VertexShader();
-        PixelShader = compile ps_2_0 CreateShadowMap_PixelShader();
+        VertexShader = compile vs_3_0 CreateShadowMap_VertexShader();
+        PixelShader = compile ps_3_0 CreateShadowMap_PixelShader();
     }
 }
 
